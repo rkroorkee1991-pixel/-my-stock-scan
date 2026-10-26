@@ -1,0 +1,68 @@
+
+<!doctype html>
+<html lang="hi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Stock Scan</title>
+<style>
+body{font:16px Arial;background:#f2f6f3;margin:0;padding:16px;color:#173b35}
+main{max-width:500px;margin:auto}section{background:white;padding:16px;border-radius:14px;margin:12px 0}
+input,button{box-sizing:border-box;width:100%;padding:12px;margin:5px 0;border-radius:8px;border:1px solid #ccc;font-size:16px}
+button{background:#176b54;color:white;border:0;font-weight:bold}
+.item{padding:12px 0;border-bottom:1px solid #ddd}
+</style>
+<main>
+<h2>📦 My Stock Scan</h2>
+<section>
+<h3>नया स्टॉक / स्टॉक निकालें</h3>
+<label>Barcode / ID</label><input id="code" placeholder="Barcode या ID">
+<label>Model Number</label><input id="model" placeholder="Model Number">
+<label>Serial Number</label><input id="serial" placeholder="Serial Number">
+<label>Quantity</label><input id="qty" type="number" min="1" value="1">
+<label>Action</label>
+<select id="action" style="width:100%;padding:12px">
+<option value="IN">Stock IN</option><option value="OUT">Stock OUT</option>
+</select>
+<button onclick="save()">स्टॉक सेव करें</button>
+</section>
+<section>
+<h3>स्टॉक लिस्ट</h3>
+<p id="total">कुल स्टॉक: 0</p>
+<input id="search" placeholder="Model / Serial खोजें" oninput="render()">
+<div id="list"></div>
+<button onclick="backup()">CSV बैकअप डाउनलोड</button>
+</section>
+</main>
+<script>
+let stock=[];
+try{stock=JSON.parse(localStorage.getItem('myStock')||'[]')}catch(e){}
+function save(){
+let code=document.getElementById('code').value.trim();
+let model=document.getElementById('model').value.trim();
+let serial=document.getElementById('serial').value.trim();
+let qty=Number(document.getElementById('qty').value);
+let action=document.getElementById('action').value;
+if(!code&&!model&&!serial)return alert('Barcode, Model या Serial भरें');
+if(!Number.isInteger(qty)||qty<1)return alert('Quantity सही भरें');
+let x=stock.find(i=>(serial&&i.serial===serial)||(code&&i.code===code));
+if(action==='OUT'&&!x)return alert('आइटम नहीं मिला');
+if(action==='OUT'&&x.qty<qty)return alert('स्टॉक कम है');
+if(!x){if(action==='OUT')return;x={code,model,serial,qty:0};stock.push(x)}
+x.qty+=action==='IN'?qty:-qty;
+localStorage.setItem('myStock',JSON.stringify(stock));
+render();alert('स्टॉक सेव हो गया');
+}
+function render(){
+let q=document.getElementById('search').value.toLowerCase();
+document.getElementById('total').textContent='कुल स्टॉक: '+stock.reduce((s,x)=>s+x.qty,0);
+document.getElementById('list').innerHTML=stock.filter(x=>(x.model+x.serial+x.code).toLowerCase().includes(q)).map(x=>'<div class="item"><b>'+safe(x.model||x.code)+'</b><br>Serial: '+safe(x.serial)+'<br>Barcode: '+safe(x.code)+'<br>Quantity: '+x.qty+'</div>').join('')||'अभी कोई आइटम नहीं';
+}
+function safe(s){let d=document.createElement('div');d.textContent=s||'—';return d.innerHTML}
+function backup(){
+let rows=[['Barcode','Model','Serial','Quantity'],...stock.map(x=>[x.code,x.model,x.serial,x.qty])];
+let csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+let a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='stock.csv';a.click();
+}
+render();
+</script>
+</html>
